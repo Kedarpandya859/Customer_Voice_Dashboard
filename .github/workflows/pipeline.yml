@@ -1,0 +1,56 @@
+name: Daily Review Pipeline
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # daily at 3 AM UTC
+  workflow_dispatch:  # lets you trigger it manually from the Actions tab
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Scrape latest reviews
+        run: python -m src.scrapers.play_store
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TARGET_APP_ID: ${{ secrets.TARGET_APP_ID }}
+          TARGET_COMPANY_NAME: ${{ secrets.TARGET_COMPANY_NAME }}
+
+      - name: Tag sentiment + complaint category
+        run: python -m src.pipeline.tag_reviews
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TARGET_COMPANY_NAME: ${{ secrets.TARGET_COMPANY_NAME }}
+          LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Generate opportunities
+        run: python -m src.pipeline.generate_opportunities
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TARGET_COMPANY_NAME: ${{ secrets.TARGET_COMPANY_NAME }}
+          LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Generate report + email snippet
+        run: python -m src.pipeline.generate_report
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TARGET_COMPANY_NAME: ${{ secrets.TARGET_COMPANY_NAME }}
+
+      - name: Upload report as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: opportunity-report
+          path: data/reports/
