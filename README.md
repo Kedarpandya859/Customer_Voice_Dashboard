@@ -123,6 +123,20 @@ Notes:
 - If you encounter build issues, check the Vercel build logs and increase the
   image build resources or switch to a different host.
 
+Lightweight Vercel alternative (recommended if Docker unsupported)
+
+If Vercel cannot build containers for your account, you can host the
+Streamlit server elsewhere (Render, Streamlit Community Cloud) and use Vercel
+only for the public site. This repository includes a small serverless
+function at `api/index.js` that returns a single-page app embedding the
+external Streamlit URL via an iframe. To use it:
+
+1. Deploy your Streamlit app on Render or Streamlit Community Cloud and note its public URL.
+2. In Vercel Project Settings → Environment Variables add `STREAMLIT_URL` with that public URL.
+3. Deploy the Vercel project — visiting the Vercel URL will show the embedded dashboard.
+
+This approach serves the public website from Vercel while the Streamlit process runs on a host suited for long-lived containers.
+
 ## Analyzing a different company
 
 Change `TARGET_APP_ID` and `TARGET_COMPANY_NAME` in `.env` (and in your
