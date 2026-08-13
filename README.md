@@ -102,6 +102,27 @@ and uploads the generated report as an artifact. To enable it:
 Once those secrets are set, you can trigger the workflow manually from the
 Actions tab or wait for the scheduled run.
 
+### Deploying the dashboard to Vercel (container)
+
+This repo includes a `Dockerfile` and `vercel.json` so you can deploy the
+Streamlit dashboard on Vercel using a container deployment. Vercel will build
+the Docker image and run the container.
+
+1. Connect your GitHub repo to Vercel (https://vercel.com/new) and choose this
+  repository.
+2. In the Project Settings → Environment Variables, add the same secrets used
+  by the pipeline: `DATABASE_URL`, `TARGET_APP_ID`, `TARGET_COMPANY_NAME`,
+  `LLM_PROVIDER`, `GEMINI_API_KEY`, and optionally `GEMINI_MODEL`.
+3. Deploy — Vercel will build the Docker image. The container runs Streamlit
+  and binds to the port provided by Vercel.
+
+Notes:
+- Vercel runs containers for short-lived serverless deployments; for heavier
+  or long-running Streamlit workloads you may prefer Render/Heroku/Streamlit
+  Community Cloud which are more suited to long-lived web processes.
+- If you encounter build issues, check the Vercel build logs and increase the
+  image build resources or switch to a different host.
+
 ## Analyzing a different company
 
 Change `TARGET_APP_ID` and `TARGET_COMPANY_NAME` in `.env` (and in your
