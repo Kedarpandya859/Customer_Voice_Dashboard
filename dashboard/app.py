@@ -12,7 +12,11 @@ import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv()
-DATABASE_URL = os.getenv("DATABASE_URL")
+
+try:
+    DATABASE_URL = os.getenv("DATABASE_URL") or st.secrets.get("DATABASE_URL")
+except FileNotFoundError:
+    DATABASE_URL = os.getenv("DATABASE_URL")
 
 st.set_page_config(page_title="Review Opportunity Dashboard", layout="wide")
 
@@ -61,6 +65,13 @@ def load_opportunities(company_id):
 
 st.title("Review Opportunity Dashboard")
 
+if not DATABASE_URL:
+    st.error(
+        "DATABASE_URL is not configured. Add it in Streamlit Cloud under "
+        "Settings > Secrets using your Supabase PostgreSQL connection string."
+    )
+    st.stop()
+
 companies = load_companies()
 if companies.empty:
     st.warning("No companies in the database yet. Run the scraper first: `python -m src.scrapers.play_store`")
@@ -101,9 +112,7 @@ with tab_complaints:
         st.bar_chart(counts)
         counts_table = counts.reset_index()
         counts_table.columns = ["category", "count"]
-        st.dataframe(counts_table, use_container_width=True
-        )
-    
+        st.dataframe(counts_table, use_container_width=True)
     else:
         st.info("No reviews tagged yet. Run `python -m src.pipeline.tag_reviews`.")
 
