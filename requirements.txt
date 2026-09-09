@@ -1,5 +1,6 @@
 google-play-scraper==1.2.7
-psycopg2-binary==2.9.9
+praw>=8.0.0,<9.0.0
+psycopg2-binary>=2.9.11,<3.0
 python-dotenv==1.0.1
 streamlit==1.38.0
 pandas==2.2.2
