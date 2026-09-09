@@ -2,7 +2,8 @@ google-play-scraper==1.2.7
 praw>=8.0.0,<9.0.0
 psycopg2-binary>=2.9.11,<3.0
 python-dotenv==1.0.1
-streamlit==1.38.0
-pandas==2.2.2
+streamlit==1.63.0
+pandas==2.3.3
+Pillow>=12.0,<13.0
 anthropic>=0.69.0,<1.0.0
 google-genai>=1.0.0
