@@ -8,7 +8,7 @@ Run directly:
 import os
 from datetime import datetime
 
-from src.config import TARGET_COMPANY_NAME
+from src.config import TARGETS
 from src.db import get_connection, get_company_id, get_latest_opportunities
 
 OUTPUT_DIR = "data/reports"
@@ -54,32 +54,37 @@ def build_email_snippet(company_name, opportunities):
     return snippet
 
 
+def run_for(conn, company_name):
+    company_id = get_company_id(conn, company_name)
+    if company_id is None:
+        print(f"No company found named {company_name}.")
+        return
+
+    opportunities = get_latest_opportunities(conn, company_id, limit=5)
+    if not opportunities:
+        print(f"[{company_name}] No opportunities generated yet. Run `python -m src.pipeline.generate_opportunities` first.")
+        return
+
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    slug = company_name.lower().replace(" ", "_")
+
+    report_path = f"{OUTPUT_DIR}/{slug}_report.md"
+    with open(report_path, "w", encoding="utf-8") as f:
+        f.write(build_markdown_report(company_name, opportunities))
+
+    snippet_path = f"{OUTPUT_DIR}/{slug}_email_snippet.txt"
+    with open(snippet_path, "w", encoding="utf-8") as f:
+        f.write(build_email_snippet(company_name, opportunities))
+
+    print(f"Wrote {report_path}")
+    print(f"Wrote {snippet_path}")
+
+
 def run():
     conn = get_connection()
     try:
-        company_id = get_company_id(conn, TARGET_COMPANY_NAME)
-        if company_id is None:
-            print(f"No company found named {TARGET_COMPANY_NAME}.")
-            return
-
-        opportunities = get_latest_opportunities(conn, company_id, limit=5)
-        if not opportunities:
-            print("No opportunities generated yet. Run `python -m src.pipeline.generate_opportunities` first.")
-            return
-
-        os.makedirs(OUTPUT_DIR, exist_ok=True)
-        slug = TARGET_COMPANY_NAME.lower().replace(" ", "_")
-
-        report_path = f"{OUTPUT_DIR}/{slug}_report.md"
-        with open(report_path, "w") as f:
-            f.write(build_markdown_report(TARGET_COMPANY_NAME, opportunities))
-
-        snippet_path = f"{OUTPUT_DIR}/{slug}_email_snippet.txt"
-        with open(snippet_path, "w") as f:
-            f.write(build_email_snippet(TARGET_COMPANY_NAME, opportunities))
-
-        print(f"Wrote {report_path}")
-        print(f"Wrote {snippet_path}")
+        for target in TARGETS:
+            run_for(conn, target["name"])
     finally:
         conn.close()
 

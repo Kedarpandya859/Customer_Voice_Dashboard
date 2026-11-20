@@ -1,6 +1,6 @@
 # Review Opportunity Dashboard
 
-Pulls reviews of a company, tags sentiment and complaint patterns with Claude,
+Pulls reviews of one or more companies (currently **Meesho** and **Paytm**), tags sentiment and complaint patterns with Claude,
 scores the recurring pain points, and generates product-opportunity
 hypotheses — plus a one-pager report you can use as a cold-email hook.
 
@@ -56,10 +56,10 @@ streamlit run dashboard/app.py
 ## Deploying for free (so you have a live public link)
 
 - **GitHub**: push this repo
-- **GitHub Actions**: add repo secrets — `DATABASE_URL`, `TARGET_APP_ID`,
-  `TARGET_COMPANY_NAME`, `LLM_PROVIDER` (set to `gemini`), `GEMINI_API_KEY`
+- **GitHub Actions**: add repo secrets — `DATABASE_URL`, `LLM_PROVIDER` (set to `gemini`), `GEMINI_API_KEY`
   (Settings → Secrets and
-  variables → Actions). `.github/workflows/pipeline.yml` then runs the
+  variables → Actions). The list of apps is set by `TARGET_APPS` at the top of the workflow
+  file. `.github/workflows/pipeline.yml` then runs the
   entire pipeline daily for free and uploads the report as a downloadable
   artifact on each run.
 - **Streamlit Community Cloud**: connect your GitHub repo at
@@ -81,8 +81,7 @@ git push -u origin main
   the repository and set the app file to `dashboard/app.py`.
 
 3. In Streamlit's Secrets (App settings → Secrets), add the same values you
-  would for GitHub Actions: `DATABASE_URL`, `TARGET_APP_ID`,
-  `TARGET_COMPANY_NAME`, `LLM_PROVIDER`, `GEMINI_API_KEY`, and optionally
+  would for GitHub Actions: `DATABASE_URL`, `LLM_PROVIDER`, `GEMINI_API_KEY`, and optionally
   `GEMINI_MODEL` (e.g. `gemini-2.5-flash`).
 
 4. Start the app — Streamlit will build the environment using
@@ -96,8 +95,7 @@ The repository already contains a GitHub Actions workflow at
 and uploads the generated report as an artifact. To enable it:
 
 - In your repository on GitHub go to Settings → Secrets and variables → Actions
-  and add: `DATABASE_URL`, `TARGET_APP_ID`, `TARGET_COMPANY_NAME`,
-  `LLM_PROVIDER`, `GEMINI_API_KEY`, and `ANTHROPIC_API_KEY` (if using Anthropic).
+  and add: `DATABASE_URL`, `LLM_PROVIDER`, `GEMINI_API_KEY`, and `ANTHROPIC_API_KEY` (if using Anthropic).
 
 Once those secrets are set, you can trigger the workflow manually from the
 Actions tab or wait for the scheduled run.
@@ -111,8 +109,7 @@ the Docker image and run the container.
 1. Connect your GitHub repo to Vercel (https://vercel.com/new) and choose this
   repository.
 2. In the Project Settings → Environment Variables, add the same secrets used
-  by the pipeline: `DATABASE_URL`, `TARGET_APP_ID`, `TARGET_COMPANY_NAME`,
-  `LLM_PROVIDER`, `GEMINI_API_KEY`, and optionally `GEMINI_MODEL`.
+  by the pipeline: `DATABASE_URL`, `LLM_PROVIDER`, `GEMINI_API_KEY`, and optionally `GEMINI_MODEL`.
 3. Deploy — Vercel will build the Docker image. The container runs Streamlit
   and binds to the port provided by Vercel.
 
@@ -137,10 +134,28 @@ external Streamlit URL via an iframe. To use it:
 
 This approach serves the public website from Vercel while the Streamlit process runs on a host suited for long-lived containers.
 
-## Analyzing a different company
+## Choosing which companies to analyze
 
-Change `TARGET_APP_ID` and `TARGET_COMPANY_NAME` in `.env` (and in your
-GitHub/Streamlit secrets once deployed), then re-run the pipeline. Find the
-app id in its Play Store URL: `play.google.com/store/apps/details?id=THIS_PART`.
-If the company isn't e-commerce, edit `COMPLAINT_TAXONOMY` in `src/config.py`
-to match their domain.
+Set `TARGET_APPS` in `.env` and at the top of
+`.github/workflows/pipeline.yml`. It's a `;`-separated list of
+`Name|play.store.id|domain` entries:
+
+```
+TARGET_APPS=Meesho|com.meesho.supply|ecommerce;Paytm|net.one97.paytm|fintech
+```
+
+Every pipeline step loops over all of them, and the dashboard has a company
+picker in the sidebar. Find an app id in its Play Store URL:
+`play.google.com/store/apps/details?id=THIS_PART`. (The old single-app
+`TARGET_APP_ID` / `TARGET_COMPANY_NAME` settings still work if `TARGET_APPS`
+isn't set.)
+
+`domain` picks the complaint taxonomy, defined in `TAXONOMIES` in
+`src/config.py`:
+
+| Domain | Used for | Categories |
+|---|---|---|
+| `ecommerce` | Meesho | delivery delay, product quality, refund issues, seller fraud, app bugs/UX, customer support, pricing |
+| `fintech` | Paytm | payment failures, refund issues, KYC/account blocks, fraud & security, app bugs/UX, customer support, fees & charges |
+
+For a different kind of product, add a new taxonomy there.

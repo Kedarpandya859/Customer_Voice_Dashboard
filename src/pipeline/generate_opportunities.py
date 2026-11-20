@@ -7,7 +7,7 @@ Run directly:
 """
 import time
 
-from src.config import TARGET_COMPANY_NAME
+from src.config import TARGETS
 from src.db import (
     get_connection,
     get_company_id,
@@ -53,44 +53,49 @@ standalone-solvable opportunity rather than something only {company_name} itself
     return title or text[:80], rationale or text
 
 
+def run_for(conn, company_name):
+    company_id = get_company_id(conn, company_name)
+    if company_id is None:
+        print(f"No company found named {company_name}. Run the scraper and tagger first.")
+        return
+
+    stats = get_category_stats(conn, company_id)
+    stats = [s for s in stats if s["complaint_category"] not in (None, "other")]
+    if not stats:
+        print(f"[{company_name}] No tagged reviews yet. Run `python -m src.pipeline.tag_reviews` first.")
+        return
+
+    max_count = max(s["review_count"] for s in stats)
+    for s in stats:
+        s["score"] = score_category(s, max_count)
+    stats.sort(key=lambda s: s["score"], reverse=True)
+
+    for stat in stats[:TOP_N_CATEGORIES]:
+        samples = get_sample_reviews_for_category(conn, company_id, stat["complaint_category"])
+        if not samples:
+            continue
+        title, rationale = generate_hypothesis(company_name, stat["complaint_category"], samples)
+        insert_opportunity(
+            conn,
+            company_id,
+            stat["complaint_category"],
+            stat["review_count"],
+            float(stat["avg_rating"] or 0),
+            stat["score"],
+            title,
+            rationale,
+        )
+        print(f"[{company_name}] [{stat['score']}] {stat['complaint_category']} -> {title}")
+        time.sleep(SLEEP_BETWEEN_CALLS)
+
+    print(f"[{company_name}] Done generating opportunities.")
+
+
 def run():
     conn = get_connection()
     try:
-        company_id = get_company_id(conn, TARGET_COMPANY_NAME)
-        if company_id is None:
-            print(f"No company found named {TARGET_COMPANY_NAME}. Run the scraper and tagger first.")
-            return
-
-        stats = get_category_stats(conn, company_id)
-        stats = [s for s in stats if s["complaint_category"] not in (None, "other")]
-        if not stats:
-            print("No tagged reviews yet. Run `python -m src.pipeline.tag_reviews` first.")
-            return
-
-        max_count = max(s["review_count"] for s in stats)
-        for s in stats:
-            s["score"] = score_category(s, max_count)
-        stats.sort(key=lambda s: s["score"], reverse=True)
-
-        for stat in stats[:TOP_N_CATEGORIES]:
-            samples = get_sample_reviews_for_category(conn, company_id, stat["complaint_category"])
-            if not samples:
-                continue
-            title, rationale = generate_hypothesis(TARGET_COMPANY_NAME, stat["complaint_category"], samples)
-            insert_opportunity(
-                conn,
-                company_id,
-                stat["complaint_category"],
-                stat["review_count"],
-                float(stat["avg_rating"] or 0),
-                stat["score"],
-                title,
-                rationale,
-            )
-            print(f"[{stat['score']}] {stat['complaint_category']} -> {title}")
-            time.sleep(SLEEP_BETWEEN_CALLS)
-
-        print("Done generating opportunities.")
+        for target in TARGETS:
+            run_for(conn, target["name"])
     finally:
         conn.close()
 

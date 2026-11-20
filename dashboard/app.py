@@ -79,6 +79,7 @@ if companies.empty:
 
 company_name = st.sidebar.selectbox("Company", companies["name"])
 company_id = int(companies[companies["name"] == company_name]["id"].iloc[0])
+st.header(company_name)
 
 reviews_df = load_reviews(company_id)
 opportunities_df = load_opportunities(company_id)
